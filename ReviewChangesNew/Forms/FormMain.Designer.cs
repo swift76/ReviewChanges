@@ -197,7 +197,6 @@ namespace ReviewChangesNew
             this.dataReview.Size = new System.Drawing.Size(944, 508);
             this.dataReview.TabIndex = 0;
             this.dataReview.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataReview_CellEndEdit);
-            this.dataReview.KeyDown += new System.Windows.Forms.KeyEventHandler(this.dataReview_KeyDown);
             // 
             // changeContextMenu
             // 
