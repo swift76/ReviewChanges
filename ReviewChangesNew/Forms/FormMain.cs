@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
@@ -7,19 +8,33 @@ using System.Windows.Forms;
 using System.Configuration;
 using System.Diagnostics;
 
-namespace ReviewChanges
+namespace ReviewChangesNew
 {
     public partial class FormMain : Form
     {
-        public FormLogin LoginForm { get; set; }
-        public BaseDataAccess DataAccess { get; set; }
-        public string MergeTool { get; set; }
+        public FormLogin loginForm { get; set; }
+        public BaseDataAccess dataAccess { get; set; }
+        private ScriptManager Script { get; set; }
+        private SQLScriptManager sqlScript { get; set; }
+        private string mergeTool { get; set; }
+
+        Settings appSettings;
 
         public FormMain()
         {
             InitializeComponent();
 
-            MergeTool = ConfigurationManager.AppSettings["MergeTool"];
+            mergeTool = ConfigurationManager.AppSettings["MergeTool"];
+        }
+
+        public FormMain(Settings appSettings, BaseDataAccess dataAccess)
+        {
+            InitializeComponent();
+            this.appSettings = appSettings;
+            this.dataAccess = dataAccess;
+            this.Script = new ScriptManager(this.dataAccess, this.appSettings);
+            this.sqlScript = new SQLScriptManager(this.dataAccess, this.Script);
+            mergeTool = appSettings.MergeTool;
         }
 
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
@@ -29,8 +44,8 @@ namespace ReviewChanges
                 e.Cancel = true;
                 return;
             }
-            DataAccess.DisposeConnection();
-            LoginForm.Close();
+            dataAccess.DisposeConnection();
+            loginForm.Close();
         }
 
         private void buttonImportConstants_Click(object sender, EventArgs e)
@@ -40,7 +55,7 @@ namespace ReviewChanges
                 try
                 {
                     Cursor = Cursors.WaitCursor;
-                    DataAccess.SaveConstants();
+                    Script.SaveConstants();
                     MessageBox.Show("Import Constants succeeded");
                 }
                 catch (Exception ex)
@@ -57,7 +72,7 @@ namespace ReviewChanges
         private void buttonImportScript_Click(object sender, EventArgs e)
         {
             OpenFileDialog fileDialog = new OpenFileDialog();
-            fileDialog.InitialDirectory = DataAccess.BaseScriptPath;
+            fileDialog.InitialDirectory = Script.BaseScriptPath;
             fileDialog.Filter = "AS files (*.as)|*.as";
             fileDialog.RestoreDirectory = true;
             fileDialog.FileName = string.Empty;
@@ -66,7 +81,7 @@ namespace ReviewChanges
                 try
                 {
                     Cursor = Cursors.WaitCursor;
-                    DataAccess.SaveScript(fileDialog.FileName);
+                    Script.SaveScript(fileDialog.FileName);
                     MessageBox.Show("Import Script succeeded");
                 }
                 catch (Exception ex)
@@ -87,9 +102,31 @@ namespace ReviewChanges
                 bool onlyChanged = (MessageBox.Show("Show changed only?", "Review Changes", MessageBoxButtons.YesNo) == DialogResult.Yes);
                 Cursor = Cursors.WaitCursor;
                 string path;
-                dataReview.DataSource = DataAccess.CompareAndMerge(onlyChanged, out path);
+                Script.CompareAndMerge(onlyChanged, out path);
+                dataReview.DataSource = dataReview.DataSource = ApplySearchInGrid();
                 dataReview.Tag = path;
                 MessageBox.Show("Merge Constants and Compare Scripts succeeded");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally
+            {
+                Cursor = Cursors.Arrow;
+            }
+        }
+
+        private void buttonCompareSQLScript_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                bool onlyChanged = (MessageBox.Show("Show changed only?", "Review Changes", MessageBoxButtons.YesNo) == DialogResult.Yes);
+                Cursor = Cursors.WaitCursor;
+                string path;
+                dataReview.DataSource = sqlScript.CompareSQLScript(onlyChanged, out path);
+                dataReview.Tag = path;
+                MessageBox.Show("Compare SQL Scripts succeeded");
             }
             catch (Exception ex)
             {
@@ -108,7 +145,7 @@ namespace ReviewChanges
                 try
                 {
                     Cursor = Cursors.WaitCursor;
-                    DataAccess.SaveScript(string.Format(@"{0}\{1}", dataReview.Tag.ToString(), GetStringCellValue("Value")));
+                    Script.SaveScript(string.Format(@"{0}\{1}", dataReview.Tag.ToString(), GetStringCellValue("Value"), GetStringCellValue("Subdirectory")));
                     MessageBox.Show("Import Script succeeded");
                 }
                 catch (Exception ex)
@@ -139,7 +176,7 @@ namespace ReviewChanges
         {
             if (dataReview != null && dataReview.SelectedRows.Count == 1)
             {
-                if (DataAccess.IsRealTest)
+                if (dataAccess.ActiveConnection.ConnectionString == "real")
                     Process.Start(GetRealFileName());
                 else
                     Process.Start(GetTestFileName());
@@ -156,8 +193,8 @@ namespace ReviewChanges
         {
             if (dataReview != null && dataReview.SelectedRows.Count == 1 && MessageBox.Show("Are you sure?", "Delete script from database", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                DataAccess.DeleteScript(GetStringCellValue("Value"));
-                if (DataAccess.IsRealTest)
+                dataAccess.DeleteScript(GetStringCellValue("Value"));
+                if (dataAccess.ActiveConnection.ConnectionString == "real")
                     File.Delete(GetRealFileName());
                 else
                     File.Delete(GetTestFileName());
@@ -176,11 +213,11 @@ namespace ReviewChanges
                 try
                 {
                     string currentFile;
-                    if (DataAccess.IsRealTest)
+                    if (dataAccess.ActiveConnection.ConnectionString == "real")
                         currentFile = GetRealFileName();
                     else
                         currentFile = GetTestFileName();
-                    Process.Start(MergeTool, string.Format("\"{0}\" \"{1}\"", currentFile, GetVersionFileName()));
+                    Process.Start(mergeTool, string.Format("\"{0}\" \"{1}\"", currentFile, GetVersionFileName()));
                 }
                 catch
                 {
@@ -201,7 +238,7 @@ namespace ReviewChanges
                 }
                 try
                 {
-                    Process.Start(MergeTool, string.Format("{0} \"{1}\"", testFile, realFile));
+                    Process.Start(mergeTool, string.Format("{0} \"{1}\"", testFile, realFile));
                 }
                 catch
                 {
@@ -241,17 +278,17 @@ namespace ReviewChanges
 
         private string GetTestFileName(int row_index = -1)
         {
-            return $"{Directory.GetDirectories(DataAccess.BaseScriptPath).First(d => d.EndsWith("_TEST"))}\\Scripts\\Changes\\{GetFileName(row_index)}";
+            return $"{Directory.GetDirectories(Script.BaseScriptPath).First(d => d.EndsWith("_TEST"))}\\Scripts\\Changes\\{GetFileName(row_index)}";
         }
 
         private string GetRealFileName(int row_index = -1)
         {
-            return $"{Directory.GetDirectories(DataAccess.BaseScriptPath).First(d => d.EndsWith("_REAL"))}\\Scripts\\{GetFileName(row_index)}";
+            return $"{Directory.GetDirectories(Script.BaseScriptPath).First(d => d.EndsWith("_REAL"))}\\Scripts\\{GetFileName(row_index)}";
         }
 
         private string GetVersionFileName()
         {
-            return $"{Directory.GetDirectories(DataAccess.VersionPath).OrderByDescending(d => d.ToUpper()).First()}\\BankScript\\{GetStringCellValue("Value")}";
+            return $"{Directory.GetDirectories(Script.VersionPath).OrderByDescending(d => d.ToUpper()).First()}\\BankScript\\{GetStringCellValue("Value")}";
         }
 
         private string GetChangesFromScript(string fileName)
@@ -262,11 +299,11 @@ namespace ReviewChanges
             for (int i = 0; i < fileRows.Length; i++)
             {
                 string row = fileRows[i].Trim();
-                if (row.ToUpper() == DataAccess.LocalBeginComment)
+                if (row.ToUpper() == Script.LocalBeginComment)
                 {
                     isComment = true;
                 }
-                else if (row.ToUpper() == DataAccess.LocalEndComment)
+                else if (row.ToUpper() == Script.LocalEndComment)
                 {
                     isComment = false;
                 }
@@ -294,7 +331,7 @@ namespace ReviewChanges
                         {
                             ResetFileReadOnly(realFile);
                             File.Copy(testFile, realFile, true);
-                            DataAccess.SaveScript(string.Format(@"{0}\{1}", dataReview.Tag.ToString(), GetStringCellValue("Value", i)));
+                            Script.SaveScript(string.Format(@"{0}\{1}", dataReview.Tag.ToString(), GetStringCellValue("Value", i), GetStringCellValue("Subdirectory", i)));
                         }
                     }
                     catch (Exception ex)
@@ -312,6 +349,76 @@ namespace ReviewChanges
             FileInfo fileInfo = new FileInfo(fileName);
             if (fileInfo.IsReadOnly)
                 fileInfo.IsReadOnly = false;
+        }
+
+        private void ImportSQLScript_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog fileDialog = new OpenFileDialog();
+            fileDialog.InitialDirectory = Script.BaseScriptPath;
+            fileDialog.Filter = "AS files (*.sql)|*.sql";
+            fileDialog.RestoreDirectory = true;
+            fileDialog.FileName = string.Empty;
+            if (fileDialog.ShowDialog(this) == DialogResult.OK)
+            {
+                try
+                {
+                    Cursor = Cursors.WaitCursor;
+                    sqlScript.SaveSQLScript(fileDialog.FileName);
+                    MessageBox.Show("Import SQL Script succeeded");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally
+                {
+                    Cursor = Cursors.Arrow;
+                }
+            }
+        }
+
+        private void setSubdirectoryToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            int selectedRow = dataReview.CurrentRow.Index;
+            var SubdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
+
+            DataGridViewCell cell = dataReview.Rows[selectedRow].Cells[SubdirectoryIndex];
+            dataReview.CurrentCell = cell;
+            dataReview.BeginEdit(true);               
+        }
+
+        private void Search_Click(object sender, EventArgs e)
+        {
+            dataReview.DataSource = ApplySearchInGrid();
+        }
+
+        public List<ReportItem> ApplySearchInGrid()
+        {
+            string status = comboStatus.SelectedItem?.ToString();
+            string path = txtPath.Text?.Trim();
+            List<ReportItem> reportItems = new List<ReportItem>();
+            foreach (ReportItem item in Script.report)
+            {
+                if (item.Status.StartsWith(string.IsNullOrEmpty(status) ? string.Empty : status) 
+                    && item.Value.ToUpper().Contains(string.IsNullOrEmpty(path) ? string.Empty : path.ToUpper()))
+                {
+                    reportItems.Add(item);
+                }
+            }
+
+            return reportItems;
+        }
+
+        private void dataReview_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            int selectedRow = dataReview.CurrentRow.Index;
+            var subdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
+            var pathindex = dataReview.Columns.IndexOf(dataReview.Columns["Value"]);
+
+            string value = dataReview[pathindex, selectedRow].Value.ToString();
+            string subdirectory = dataReview[subdirectoryIndex, selectedRow].Value?.ToString().Trim();
+
+            dataAccess.UpdateSubdirectory(value, subdirectory == string.Empty ? null : subdirectory);
         }
     }
 }

@@ -25,6 +25,16 @@ CREATE TABLE dbo.SCRIPT (
 )
 GO
 
+if exists (select * from sys.objects where name='SQLSCRIPT' and type='U')
+	drop table dbo.SQLSCRIPT
+GO
+
+CREATE TABLE dbo.SQLSCRIPT (
+	NAME			nvarchar(100)	PRIMARY KEY CLUSTERED,
+	BODY			varchar(max)	NOT NULL,
+)
+GO
+
 
 
 if exists (select * from sys.objects where name='CONSTANT_ARM' and type='U')
@@ -55,6 +65,15 @@ GO
 
 -- PROCEDURES --
 
+create or alter procedure ahsp_Update_SUBDIRECTORY(
+	@PATH			nvarchar(300),
+	@SUBDIRECTORY	nvarchar(255) = NULL
+)
+AS
+	UPDATE SCRIPT
+	SET SUBDIRECTORY = @SUBDIRECTORY
+	WHERE PATH = @PATH;
+GO
 
 create or alter procedure ahsp_Insert_SCRIPT(
 	@PATH			nvarchar(300),
@@ -65,6 +84,11 @@ AS
 	insert into SCRIPT (PATH,BODY,SUBDIRECTORY) values (@PATH,@BODY,@SUBDIRECTORY)
 GO
 
+create or alter procedure ahsp_Insert_SQLSCRIPT(@Name nvarchar(300),@BODY varchar(max))
+AS
+	insert into SQLSCRIPT(NAME,BODY) values (@Name,@BODY)
+GO
+
 
 
 create or alter procedure ahsp_Delete_SCRIPT(@PATH nvarchar(300))
@@ -72,6 +96,17 @@ AS
 	delete from SCRIPT where PATH=@PATH
 GO
 
+
+create or alter procedure ahsp_Delete_SQLSCRIPT(@Name nvarchar(300))
+AS
+	delete from SQLSCRIPT where NAME=@Name
+GO
+
+
+create or alter  procedure ahsp_GetSQLScriptList
+AS
+	select NAME,BODY from SQLSCRIPT
+GO
 
 
 create or alter procedure ahsp_Insert_CONSTANT_ARM(@CODE varchar(100),@VALUE varchar(1000),@LOCAL bit)
@@ -107,6 +142,19 @@ AS
 	select PATH,BODY,SUBDIRECTORY from SCRIPT
 GO
 
+
+
+create or alter procedure ahsp_GetARMConstantList
+AS
+	select CODE,VALUE,LOCAL from CONSTANT_ARM
+GO
+
+
+
+create or alter procedure ahsp_GetDEFConstantList
+AS
+	select CODE,VALUE,LOCAL from CONSTANT_DEF
+GO
 
 
 create or alter procedure ahsp_GetARMConstantList

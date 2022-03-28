@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29519.87
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32126.317
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReviewChanges", "ReviewChanges\ReviewChanges.csproj", "{0D02B28D-E55B-4E71-9904-C0F64A4262B1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReviewChangesNew", "ReviewChangesNew\ReviewChangesNew.csproj", "{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,14 @@ Global
 		{0D02B28D-E55B-4E71-9904-C0F64A4262B1}.Release|x64.Build.0 = Release|x64
 		{0D02B28D-E55B-4E71-9904-C0F64A4262B1}.Release|x86.ActiveCfg = Release|x86
 		{0D02B28D-E55B-4E71-9904-C0F64A4262B1}.Release|x86.Build.0 = Release|x86
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Debug|x64.Build.0 = Debug|Any CPU
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Debug|x86.Build.0 = Debug|Any CPU
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Release|x64.ActiveCfg = Release|Any CPU
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Release|x64.Build.0 = Release|Any CPU
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Release|x86.ActiveCfg = Release|Any CPU
+		{F8C6ABB9-F33E-453F-8B8D-59BDA08F96D5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

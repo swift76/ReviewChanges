@@ -1,60 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Data;
-using System.Data.SqlClient;
-using System.Text;
 using System.Linq;
+using System.Text;
 using System.IO;
 
-namespace ReviewChanges
+namespace ReviewChangesNew
 {
-    public class BaseDataAccess : IDisposable
+    public class ScriptManager
     {
         public string BaseScriptPath { get; set; }
         public string VersionPath { get; set; }
         public string LocalBeginComment { get; set; }
         public string LocalEndComment { get; set; }
-        public bool IsRealTest { get; set; }
+        public BaseDataAccess dataAccess { get; set; }
+        public List<ReportItem> report { get; set; }
 
-        public BaseDataAccess(string login, string password, bool isRealTest)
+        public ScriptManager(BaseDataAccess dataAccess, Settings appSettings)
         {
-            string configurationName = isRealTest ? "real" : "test";
-            SqlConnectionStringBuilder build = new SqlConnectionStringBuilder(ConfigurationManager.ConnectionStrings[configurationName].ConnectionString);
-            build.Pooling = false;
-            build.PersistSecurityInfo = true;
-            build.UserID = login;
-            build.Password = password;
-            ActiveConnection = new SqlConnection(build.ConnectionString);
-            ActiveConnection.Open();
-            BaseScriptPath = ConfigurationManager.AppSettings["BaseScriptPath"];
-            VersionPath = ConfigurationManager.AppSettings["VersionPath"];
-            string bankPrefix = ConfigurationManager.AppSettings["BankCode"];
-            LocalBeginComment = $"'''{bankPrefix} BEGIN";
-            LocalEndComment = $"'''{bankPrefix} END";
-            IsRealTest = isRealTest;
-        }
-
-        ~BaseDataAccess()
-        {
-            DisposeConnection();
-        }
-
-        public SqlConnection ActiveConnection { get; set; }
-
-        public void Dispose()
-        {
-            DisposeConnection();
-            GC.SuppressFinalize(this);
-        }
-
-        public void DisposeConnection()
-        {
-            if (ActiveConnection != null)
-            {
-                ActiveConnection.Close();
-                ActiveConnection = null;
-            }
+            string bankPrefix = appSettings.BankCode;
+            this.LocalBeginComment = $"'''{bankPrefix} BEGIN";
+            this.LocalEndComment = $"'''{bankPrefix} END";
+            this.dataAccess = dataAccess;
+            this.BaseScriptPath = appSettings.BaseScriptPath;
+            this.VersionPath = appSettings.VersionPath;
+            this.report = new List<ReportItem>(); 
         }
 
         public void SaveConstants()
@@ -66,7 +36,7 @@ namespace ReviewChanges
             ImportConstantsFile("DEF");
         }
 
-        public void SaveScript(string file)
+        public void SaveScript(string file, string subdirectory = null)
         {
             int position = file.IndexOf(@"BankScript\");
             if (position == -1)
@@ -74,86 +44,14 @@ namespace ReviewChanges
 
             string text = ParseScript(GetFileContents(file));
             file = file.Substring(position + 11);
-            using (SqlTransaction trans = ActiveConnection.BeginTransaction())
-                try
-                {
-                    using (SqlCommand cmd = new SqlCommand("ahsp_Delete_SCRIPT", ActiveConnection, trans))
-                    {
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.Parameters.Add("@PATH", SqlDbType.NVarChar, 300).Value = file;
-                        cmd.ExecuteNonQuery();
-                    }
-                    if (text.Length > 0)
-                    {
-                        using (SqlCommand cmd = new SqlCommand("ahsp_Insert_SCRIPT", ActiveConnection, trans))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.Add("@PATH", SqlDbType.NVarChar, 300).Value = file;
-                            cmd.Parameters.Add("@BODY", SqlDbType.VarChar, -1).Value = text;
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                    trans.Commit();
-                }
-                catch (Exception ex)
-                {
-                    try
-                    {
-                        trans.Rollback();
-                    }
-                    catch
-                    {
-                    }
-                    throw new ApplicationException(ex.Message);
-                }
-        }
-
-        public void DeleteScript(string file)
-        {
-            using (SqlCommand cmd = new SqlCommand("ahsp_Delete_SCRIPT", ActiveConnection))
-            {
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("@PATH", SqlDbType.NVarChar, 300).Value = file;
-                cmd.ExecuteNonQuery();
-            }
+            dataAccess.SaveScriptDB(file, text, subdirectory);
         }
 
         private void ImportConstantsFile(string extension, List<ConstantEntity> entities = null)
         {
             if (entities == null)
                 entities = ParseConstants(GetFileContents(string.Format(@"{0}\constant.{1}", BaseScriptPath, extension)));
-            using (SqlTransaction trans = ActiveConnection.BeginTransaction())
-                try
-                {
-                    using (SqlCommand cmd = new SqlCommand(string.Format("ahsp_Delete_CONSTANT_{0}", extension), ActiveConnection, trans))
-                    {
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.ExecuteNonQuery();
-                    }
-                    foreach (ConstantEntity entity in entities)
-                    {
-                        using (SqlCommand cmd = new SqlCommand(string.Format("ahsp_Insert_CONSTANT_{0}", extension), ActiveConnection, trans))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.Add("@CODE", SqlDbType.VarChar, 100).Value = entity.CODE;
-                            cmd.Parameters.Add("@VALUE", SqlDbType.VarChar, 1000).Value = entity.VALUE;
-                            cmd.Parameters.Add("@LOCAL", SqlDbType.Bit).Value = entity.LOCAL;
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                    trans.Commit();
-                }
-                catch (Exception ex)
-                {
-                    try
-                    {
-                        trans.Rollback();
-                    }
-                    catch
-                    {
-                    }
-                    throw new ApplicationException(ex.Message);
-                }
+            dataAccess.ImportConstantsFileDB(extension, entities);
         }
 
         private List<ConstantEntity> ParseConstants(string text)
@@ -181,7 +79,7 @@ namespace ReviewChanges
             return result;
         }
 
-        private string ParseScript(string text)
+        public string ParseScript(string text)
         {
             string[] scriptLines = ParseFileByRows(text, false);
             StringBuilder builder = new StringBuilder();
@@ -219,12 +117,7 @@ namespace ReviewChanges
             return result.Where(l => l != string.Empty).ToArray();
         }
 
-        private string GetFileContents(string file)
-        {
-            return File.ReadAllText(file, Encoding.Default);
-        }
-
-        public List<ReportItem> CompareAndMerge(bool onlyChanged, out string path)
+        public void CompareAndMerge(bool onlyChanged, out string path)
         {
             if (!Directory.Exists(VersionPath))
                 throw new ApplicationException("Versions directory is wrong");
@@ -237,32 +130,15 @@ namespace ReviewChanges
 
             if (!Directory.Exists(path))
                 throw new ApplicationException("Latest version doesn't contain scripts");
-            
+
+            report = new List<ReportItem>();
+
             MergeConstants(path, "ARM");
             MergeConstants(path, "DEF");
 
             List<ScriptEntity> savedScripts = new List<ScriptEntity>();
-            using (SqlCommand cmd = new SqlCommand("ahsp_GetScriptList", ActiveConnection))
-            {
-                cmd.CommandType = CommandType.StoredProcedure;
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        ScriptEntity script = new ScriptEntity()
-                        {
-                            PATH = reader.GetString(0),
-                            BODY = reader.GetString(1)
-                        };
-                        if (!reader.IsDBNull(2))
-                        {
-                            script.SUBDIRECTORY = reader.GetString(2);
-                        }
-                        savedScripts.Add(script);
-                    }
-                }
-            }
-            List<ReportItem> report = new List<ReportItem>();
+            savedScripts = dataAccess.GetSavedScripts();
+
             int i = 0;
             foreach (ScriptEntity entity in savedScripts)
             {
@@ -289,13 +165,17 @@ namespace ReviewChanges
                     });
                 }
             }
-            return report;
+        }
+
+        public string GetFileContents(string file)
+        {
+            return File.ReadAllText(file, Encoding.GetEncoding(1252));
         }
 
         private void MergeConstants(string path, string extension)
         {
             List<ConstantEntity> versionEntities = ParseConstants(GetFileContents(string.Format(@"{0}\constant.{1}", path, extension)));
-            List<ConstantEntity> savedEntities = GetDBConstants(extension);
+            List<ConstantEntity> savedEntities = dataAccess.GetDBConstants(extension);
             List<ConstantEntity> result = new List<ConstantEntity>();
             foreach (ConstantEntity savedEntity in savedEntities)
             {
@@ -312,7 +192,7 @@ namespace ReviewChanges
             foreach (ConstantEntity versionEntity in versionEntities)
                 result.Add(versionEntity);
 
-            using (StreamWriter writer = (new StreamWriter(string.Format(@"{0}\constant.{1}", BaseScriptPath, extension), false, Encoding.Default)))
+            using (StreamWriter writer = (new StreamWriter(string.Format(@"{0}\constant.{1}", BaseScriptPath, extension), false, Encoding.GetEncoding(1252))))
             {
                 List<ConstantEntity> localEntities = result.Where(item => item.LOCAL).ToList();
                 if (localEntities != null && localEntities.Count > 0)
@@ -328,28 +208,6 @@ namespace ReviewChanges
             }
 
             ImportConstantsFile(extension, result);
-        }
-
-        public List<ConstantEntity> GetDBConstants(string extension)
-        {
-            List<ConstantEntity> result = new List<ConstantEntity>();
-            using (SqlCommand cmd = new SqlCommand(string.Format("ahsp_Get{0}ConstantList", extension), ActiveConnection))
-            {
-                cmd.CommandType = CommandType.StoredProcedure;
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        result.Add(new ConstantEntity()
-                        {
-                            CODE = reader.GetString(0),
-                            VALUE = reader.GetString(1),
-                            LOCAL = reader.GetBoolean(2)
-                        });
-                    }
-                }
-            }
-            return result;
         }
     }
 }
