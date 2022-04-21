@@ -415,10 +415,13 @@ namespace ReviewChangesNew
             var subdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
             var pathindex = dataReview.Columns.IndexOf(dataReview.Columns["Value"]);
 
-            string value = dataReview[pathindex, selectedRow].Value.ToString();
-            string subdirectory = dataReview[subdirectoryIndex, selectedRow].Value?.ToString().Trim();
+            if (MessageBox.Show($"Are you sure you want to update {selectedRow + 1} row", "Update Subdirectory", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                string value = dataReview[pathindex, selectedRow].Value.ToString();
+                string subdirectory = dataReview[subdirectoryIndex, selectedRow].Value?.ToString().Trim();
 
-            dataAccess.UpdateSubdirectory(value, subdirectory == string.Empty ? null : subdirectory);
+                dataAccess.UpdateSubdirectory(value, subdirectory == string.Empty ? null : subdirectory);
+            }
         }
     }
 }
