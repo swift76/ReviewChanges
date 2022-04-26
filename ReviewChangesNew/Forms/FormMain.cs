@@ -35,6 +35,7 @@ namespace ReviewChangesNew
             this.Script = new ScriptManager(this.dataAccess, this.appSettings);
             this.sqlScript = new SQLScriptManager(this.dataAccess, this.Script);
             mergeTool = appSettings.MergeTool;
+            this.Text = $"Reveiw Changes({dataAccess.ActiveConnectionString})";
         }
 
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
@@ -415,7 +416,7 @@ namespace ReviewChangesNew
             var subdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
             var pathindex = dataReview.Columns.IndexOf(dataReview.Columns["Value"]);
 
-            if (MessageBox.Show($"Are you sure you want to update {selectedRow + 1} row", "Update Subdirectory", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show($"Are you sure you want to update {selectedRow + 1} row", "Review Changes", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 string value = dataReview[pathindex, selectedRow].Value.ToString();
                 string subdirectory = dataReview[subdirectoryIndex, selectedRow].Value?.ToString().Trim();

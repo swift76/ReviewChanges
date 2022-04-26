@@ -8,16 +8,18 @@ namespace ReviewChangesNew
     public class BaseDataAccess : IDisposable
     {
         public SqlConnection ActiveConnection { get; set; }
+        public string ActiveConnectionString { get; set; }
 
-        public BaseDataAccess(string login, string password, string connectionString)
+        public BaseDataAccess(string login, string password, KeyValuePair<string, string> connectionString)
         {
-            SqlConnectionStringBuilder build = new SqlConnectionStringBuilder(connectionString);
+            SqlConnectionStringBuilder build = new SqlConnectionStringBuilder(connectionString.Value);
             build.Pooling = false;
             build.PersistSecurityInfo = true;
             build.UserID = login;
             build.Password = password;
             ActiveConnection = new SqlConnection(build.ConnectionString);
             ActiveConnection.Open();
+            ActiveConnectionString = connectionString.Key;
         }
 
         ~BaseDataAccess()

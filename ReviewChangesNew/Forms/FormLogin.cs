@@ -35,7 +35,9 @@ namespace ReviewChangesNew
         private void buttonOK_Click(object sender, EventArgs e)
         {
             BaseDataAccess dataAccess = null;
-            string connectionString = checkRealTest.Checked ? connectionStrings["real"] : connectionStrings["test"];
+            string connectionStringKey = checkRealTest.Checked ? "real" : "test";
+            string connectionStringValue = checkRealTest.Checked ? connectionStrings["real"] : connectionStrings["test"];
+            KeyValuePair<string, string> connectionString = new KeyValuePair<string, string> (connectionStringKey, connectionStringValue);
             try
             {
                 dataAccess = new BaseDataAccess(textLogin.Text, textPassword.Text, connectionString);
