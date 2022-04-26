@@ -7,6 +7,7 @@ using System.IO;
 using System.Windows.Forms;
 using System.Configuration;
 using System.Diagnostics;
+using System.Data.SqlClient;
 
 namespace ReviewChangesNew
 {
@@ -423,6 +424,27 @@ namespace ReviewChangesNew
 
                 dataAccess.UpdateSubdirectory(value, subdirectory == string.Empty ? null : subdirectory);
             }
+        }
+
+        private void connectionButton_Click(object sender, EventArgs e)
+        {
+            string newConnection;
+            string newConnectionName;
+            if (dataAccess.ActiveConnectionString == "real")
+            {
+                newConnection = loginForm.connectionStrings["test"];
+                newConnectionName = "test";
+            }
+            else
+            {
+                newConnection = loginForm.connectionStrings["real"];
+                newConnectionName = "real";
+            }
+
+            SqlConnectionStringBuilder build = new SqlConnectionStringBuilder(newConnection);
+            dataAccess.ActiveConnection = new SqlConnection(build.ConnectionString);
+            dataAccess.ActiveConnection.Open();
+            this.Text = $"Reveiw Changes ({newConnectionName})";
         }
     }
 }

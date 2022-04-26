@@ -7,7 +7,7 @@ namespace ReviewChangesNew
     public partial class FormLogin : Form
     {
         Settings appSettings;
-        Dictionary<string, string> connectionStrings;
+        public Dictionary<string, string> connectionStrings;
 
         public FormLogin()
         {

@@ -53,6 +53,7 @@ namespace ReviewChangesNew
             this.migrateAllFromTestToRealToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setSubdirectoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.panelSearch = new System.Windows.Forms.Panel();
+            this.connectionButton = new System.Windows.Forms.Button();
             this.comboStatus = new System.Windows.Forms.ComboBox();
             this.labelPath = new System.Windows.Forms.Label();
             this.labelSearch = new System.Windows.Forms.Label();
@@ -287,6 +288,7 @@ namespace ReviewChangesNew
             // 
             // panelSearch
             // 
+            this.panelSearch.Controls.Add(this.connectionButton);
             this.panelSearch.Controls.Add(this.comboStatus);
             this.panelSearch.Controls.Add(this.labelPath);
             this.panelSearch.Controls.Add(this.labelSearch);
@@ -298,6 +300,17 @@ namespace ReviewChangesNew
             this.panelSearch.Name = "panelSearch";
             this.panelSearch.Size = new System.Drawing.Size(944, 31);
             this.panelSearch.TabIndex = 10;
+            // 
+            // connectionButton
+            // 
+            this.connectionButton.Location = new System.Drawing.Point(825, 3);
+            this.connectionButton.Margin = new System.Windows.Forms.Padding(2);
+            this.connectionButton.Name = "connectionButton";
+            this.connectionButton.Size = new System.Drawing.Size(108, 23);
+            this.connectionButton.TabIndex = 13;
+            this.connectionButton.Text = "Real/Test";
+            this.connectionButton.UseVisualStyleBackColor = true;
+            this.connectionButton.Click += new System.EventHandler(this.connectionButton_Click);
             // 
             // comboStatus
             // 
@@ -408,5 +421,6 @@ namespace ReviewChangesNew
         private System.Windows.Forms.Label labelSearch;
         private System.Windows.Forms.ComboBox comboStatus;
         private System.Windows.Forms.Panel panelView;
+        private System.Windows.Forms.Button connectionButton;
     }
 }
