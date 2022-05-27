@@ -179,7 +179,7 @@ namespace ReviewChangesNew
         {
             if (dataReview != null && dataReview.SelectedRows.Count == 1)
             {
-                if (dataAccess.ActiveConnection.ConnectionString == "real")
+                if (dataAccess.ActiveConnectionString == "real")
                     new Process { StartInfo = new ProcessStartInfo(GetRealFileName()) { UseShellExecute = true } }.Start();
                 else
                     new Process { StartInfo = new ProcessStartInfo(GetTestFileName()) { UseShellExecute = true } }.Start();
@@ -197,7 +197,7 @@ namespace ReviewChangesNew
             if (dataReview != null && dataReview.SelectedRows.Count == 1 && MessageBox.Show("Are you sure?", "Delete script from database", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 dataAccess.DeleteScript(GetStringCellValue("Value"));
-                if (dataAccess.ActiveConnection.ConnectionString == "real")
+                if (dataAccess.ActiveConnectionString == "real")
                     File.Delete(GetRealFileName());
                 else
                     File.Delete(GetTestFileName());
@@ -216,7 +216,7 @@ namespace ReviewChangesNew
                 try
                 {
                     string currentFile;
-                    if (dataAccess.ActiveConnection.ConnectionString == "real")
+                    if (dataAccess.ActiveConnectionString == "real")
                         currentFile = GetRealFileName();
                     else
                         currentFile = GetTestFileName();
@@ -286,7 +286,7 @@ namespace ReviewChangesNew
 
         private string GetRealFileName(int row_index = -1)
         {
-            return $"{Directory.GetDirectories(Script.BaseScriptPath).First(d => d.EndsWith("_REAL"))}\\Scripts\\{GetFileName(row_index)}";
+            return $"{Directory.GetDirectories(Script.BaseScriptPath).First(d => d.EndsWith("_REAL"))}\\Scripts\\Changes\\{GetFileName(row_index)}";
         }
 
         private string GetVersionFileName()
