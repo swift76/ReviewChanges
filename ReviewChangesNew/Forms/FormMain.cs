@@ -18,6 +18,7 @@ namespace ReviewChangesNew
         private ScriptManager Script { get; set; }
         private SQLScriptManager sqlScript { get; set; }
         private string mergeTool { get; set; }
+        private string previousSubdirectoryValue { get; set; }
 
         Settings appSettings;
 
@@ -147,7 +148,7 @@ namespace ReviewChangesNew
                 try
                 {
                     Cursor = Cursors.WaitCursor;
-                    Script.SaveScript(string.Format(@"{0}\{1}", dataReview.Tag.ToString(), GetStringCellValue("Value"), GetStringCellValue("Subdirectory")));
+                    Script.SaveScript(string.Format(@"{0}\{1}", dataReview.Tag.ToString(), GetStringCellValue("Value")), GetStringCellValue("Subdirectory"));
                     MessageBox.Show("Import Script succeeded");
                 }
                 catch (Exception ex)
@@ -179,16 +180,16 @@ namespace ReviewChangesNew
             if (dataReview != null && dataReview.SelectedRows.Count == 1)
             {
                 if (dataAccess.ActiveConnection.ConnectionString == "real")
-                    Process.Start(GetRealFileName());
+                    new Process { StartInfo = new ProcessStartInfo(GetRealFileName()) { UseShellExecute = true } }.Start();
                 else
-                    Process.Start(GetTestFileName());
+                    new Process { StartInfo = new ProcessStartInfo(GetTestFileName()) { UseShellExecute = true } }.Start();
             }
         }
 
         private void openVersionScriptToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (dataReview != null && dataReview.SelectedRows.Count == 1)
-                Process.Start(GetVersionFileName());
+                new Process { StartInfo = new ProcessStartInfo(GetVersionFileName()) { UseShellExecute = true } }.Start();
         }
 
         private void deleteScriptFromDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
@@ -235,8 +236,8 @@ namespace ReviewChangesNew
                 string realFile = GetRealFileName();
                 if (checkOpenEditor.Checked)
                 {
-                    Process.Start(testFile);
-                    Process.Start(realFile);
+                    new Process { StartInfo = new ProcessStartInfo(testFile) { UseShellExecute = true } }.Start();
+                    new Process { StartInfo = new ProcessStartInfo(realFile) { UseShellExecute = true } }.Start();
                 }
                 try
                 {
@@ -382,9 +383,9 @@ namespace ReviewChangesNew
         private void setSubdirectoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
             int selectedRow = dataReview.CurrentRow.Index;
-            var SubdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
-
+            int SubdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
             DataGridViewCell cell = dataReview.Rows[selectedRow].Cells[SubdirectoryIndex];
+            previousSubdirectoryValue = cell.Value?.ToString();
             dataReview.CurrentCell = cell;
             dataReview.BeginEdit(true);               
         }
@@ -414,15 +415,17 @@ namespace ReviewChangesNew
         private void dataReview_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             int selectedRow = dataReview.CurrentRow.Index;
-            var subdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
-            var pathindex = dataReview.Columns.IndexOf(dataReview.Columns["Value"]);
-
-            if (MessageBox.Show($"Are you sure you want to update {selectedRow + 1} row", "Review Changes", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            int subdirectoryIndex = dataReview.Columns.IndexOf(dataReview.Columns["Subdirectory"]);
+            int pathindex = dataReview.Columns.IndexOf(dataReview.Columns["Value"]);
+            string value = dataReview[pathindex, selectedRow].Value.ToString();
+            if (MessageBox.Show($"Are you sure you want to update subdirectory of {value}?", "Review Changes", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                string value = dataReview[pathindex, selectedRow].Value.ToString();
                 string subdirectory = dataReview[subdirectoryIndex, selectedRow].Value?.ToString().Trim();
-
                 dataAccess.UpdateSubdirectory(value, subdirectory == string.Empty ? null : subdirectory);
+            }
+            else
+            {
+                dataReview[subdirectoryIndex, selectedRow].Value = previousSubdirectoryValue;
             }
         }
 
