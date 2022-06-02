@@ -447,6 +447,7 @@ namespace ReviewChangesNew
             SqlConnectionStringBuilder build = new SqlConnectionStringBuilder(newConnection);
             dataAccess.ActiveConnection = new SqlConnection(build.ConnectionString);
             dataAccess.ActiveConnection.Open();
+            dataAccess.ActiveConnectionString = newConnectionName;
             this.Text = $"Reveiw Changes ({newConnectionName})";
         }
     }
